@@ -11,7 +11,8 @@
 //!
 //! fn main() {
 //!     App::new()
-//!         .add_plugins(DefaultPlugins)
+//!         .add_plugins(DefaultPlugins)        // core resources + animation
+//!         .add_plugins(AudioPlugin)            // opt-in: audio engine
 //!         .insert_resource(ClearColor([0.2, 0.3, 0.8, 1.0]))
 //!         .add_startup_system(setup)
 //!         .add_system(move_player)
@@ -166,6 +167,10 @@ impl Plugin for DefaultPlugins {
                 registry.register::<crate::render3d::PointLight>();
                 registry.register::<crate::render3d::AmbientLight>();
             }
+            #[cfg(feature = "audio")]
+            {
+                registry.register::<crate::audio::AudioSource>();
+            }
             #[cfg(feature = "physics2d")]
             {
                 registry.register::<crate::physics2d::RigidBody2d>();
@@ -178,6 +183,15 @@ impl Plugin for DefaultPlugins {
             }
             app.world.insert_resource(registry);
             app.world.insert_resource(RenderStats::new());
+        }
+
+        // Animation systems (sprite sheets + tweening).
+        #[cfg(feature = "render2d")]
+        {
+            app.systems
+                .add_system(crate::animation::animate_sprites);
+            app.systems
+                .add_system(crate::animation::advance_tweens);
         }
     }
 }

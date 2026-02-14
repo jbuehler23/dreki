@@ -12,7 +12,6 @@ fn main() {
         .set_title("kera — hello text")
         .insert_resource(ClearColor([0.1, 0.1, 0.15, 1.0]))
         .add_startup_system(setup)
-        .add_system(advance_tweens)
         .add_system(move_camera)
         .run();
 }

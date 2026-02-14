@@ -12,8 +12,6 @@ fn main() {
         .set_title("kera — hello animation")
         .insert_resource(ClearColor([0.0, 0.0, 0.0, 1.0]))
         .add_startup_system(setup)
-        .add_system(animate_sprites)
-        .add_system(advance_tweens)
         .add_system(move_camera)
         .run();
 }

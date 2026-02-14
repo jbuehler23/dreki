@@ -269,7 +269,7 @@ pub(crate) fn render_meshes_3d(world: &mut World) -> Result<(), wgpu::SurfaceErr
     if let Some(stats) = world.get_resource_mut::<crate::diag::RenderStats>() {
         stats.draw_calls = draw_calls.len() as u32;
         stats.vertices = draw_calls.iter().map(|c| mesh_store.get(c.mesh).index_count).sum();
-        stats.textures_loaded = texture_store.count() as u32;
+        stats.textures_loaded = texture_store.entries.len() as u32;
     }
 
     // ── 9. Reinsert resources ───────────────────────────────────────────

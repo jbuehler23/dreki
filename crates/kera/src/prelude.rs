@@ -8,8 +8,8 @@ pub use crate::math::{Mat4, Quat, Rect, Transform, Vec2, Vec3, Vec4};
 pub use crate::render::{ClearColor, GpuContext};
 #[cfg(feature = "render2d")]
 pub use crate::animation::{
-    AnimationClip, AnimationPlayer, EaseFunction, SpriteSheet, Tween, TweenTarget,
-    advance_tweens, animate_sprites,
+    AnimationClip, AnimationPlayer, AnimationPlugin, EaseFunction, SpriteSheet, Tween,
+    TweenTarget, advance_tweens, animate_sprites,
 };
 #[cfg(feature = "render2d")]
 pub use crate::render2d::{Camera2d, Color, FontHandle, Shape2d, ShapeKind2d, Sprite, Text, TextureHandle, create_texture_from_rgba, load_font, load_texture};
@@ -23,14 +23,20 @@ pub use crate::render3d::{
 pub use crate::render2d::DebugColliders2d;
 #[cfg(all(feature = "render3d", feature = "physics3d"))]
 pub use crate::render3d::DebugColliders3d;
+#[cfg(feature = "audio")]
+pub use crate::audio::{
+    AudioEngine, AudioError, AudioPlugin, AudioSource, SoundData, SoundHandle, audio_system,
+};
 pub use crate::time::Time;
 #[cfg(feature = "physics2d")]
 pub use crate::physics2d::{
-    Collider2d, ColliderShape2d, PhysicsWorld2d, RigidBody2d, RigidBodyType2d, physics_step_2d,
+    Collider2d, ColliderShape2d, Physics2dPlugin, PhysicsWorld2d, RigidBody2d, RigidBodyType2d,
+    physics_step_2d,
 };
 #[cfg(feature = "physics3d")]
 pub use crate::physics3d::{
-    Collider3d, ColliderShape3d, PhysicsWorld3d, RigidBody3d, RigidBodyType3d, physics_step_3d,
+    Collider3d, ColliderShape3d, Physics3dPlugin, PhysicsWorld3d, RigidBody3d, RigidBodyType3d,
+    physics_step_3d,
 };
 #[cfg(feature = "diagnostics")]
 pub use crate::diag::ComponentRegistry;

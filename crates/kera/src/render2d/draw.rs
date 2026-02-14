@@ -256,7 +256,7 @@ pub(crate) fn render_sprites_2d(world: &mut World) -> Result<(), wgpu::SurfaceEr
     if let Some(stats) = world.get_resource_mut::<crate::diag::RenderStats>() {
         stats.draw_calls = batches.len() as u32;
         stats.vertices = vertices.len() as u32;
-        stats.textures_loaded = texture_store.count() as u32;
+        stats.textures_loaded = texture_store.entries.len() as u32;
     }
 
     // Reinsert resources

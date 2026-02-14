@@ -24,6 +24,9 @@ pub mod render2d;
 #[cfg(feature = "render3d")]
 pub mod render3d;
 
+#[cfg(feature = "audio")]
+pub mod audio;
+
 #[cfg(feature = "physics2d")]
 pub mod physics2d;
 

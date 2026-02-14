@@ -441,6 +441,21 @@ fn apply_color_tween(target: &TweenTarget, t: f32, color: &mut Color) {
     }
 }
 
+// ── Plugin ───────────────────────────────────────────────────────────
+
+/// Plugin: registers the [`animate_sprites`] and [`advance_tweens`] systems.
+///
+/// Included automatically by [`DefaultPlugins`](crate::app::DefaultPlugins).
+/// Can also be added explicitly if you are not using `DefaultPlugins`.
+pub struct AnimationPlugin;
+
+impl crate::app::Plugin for AnimationPlugin {
+    fn build(&self, app: &mut crate::app::App) {
+        app.systems.add_system(animate_sprites);
+        app.systems.add_system(advance_tweens);
+    }
+}
+
 /// System: advance tweens and apply interpolated values to Transform/Sprite.
 ///
 /// Entities with `Tween` + `Transform` get transform properties applied.

@@ -16,10 +16,8 @@ fn main() {
             color: [1.0, 1.0, 1.0],
             intensity: 0.1,
         })
-        .insert_resource(PhysicsWorld3d::new())
-        .insert_resource(DebugColliders3d::default())
+        .add_plugins(Physics3dPlugin::new())
         .add_startup_system(setup)
-        .add_system(physics_step_3d)
         .add_system(shoot_sphere)
         .add_system(reset_scene)
         .add_system(move_camera)

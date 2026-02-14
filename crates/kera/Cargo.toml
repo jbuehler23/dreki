@@ -4,10 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [features]
-default = ["render2d", "render3d"]
+default = ["render2d", "render3d", "diagnostics"]
+full = ["render2d", "render3d", "audio", "physics2d", "physics3d", "diagnostics"]
 render2d = ["dep:fontdue"]
 render3d = ["dep:gltf"]
 diagnostics = []
+audio = ["dep:kira"]
 physics2d = ["dep:rapier2d"]
 physics3d = ["dep:rapier3d"]
 editor = ["dep:egui", "dep:egui-wgpu", "dep:egui-winit"]
@@ -28,6 +30,7 @@ gltf = { version = "1", optional = true }
 fontdue = { version = "0.9", optional = true }
 rapier2d = { version = "0.32", optional = true, features = ["simd-stable"] }
 rapier3d = { version = "0.32", optional = true, features = ["simd-stable"] }
+kira = { version = "0.11", optional = true, default-features = false, features = ["cpal", "ogg", "wav", "mp3", "flac"] }
 
 # Editor (optional)
 egui = { version = "0.33", optional = true }
@@ -50,9 +53,19 @@ name = "animation"
 name = "text"
 
 [[example]]
+name = "shapes_2d"
+
+[[example]]
+name = "shapes_3d"
+
+[[example]]
 name = "physics_2d"
 required-features = ["physics2d", "render2d"]
 
 [[example]]
 name = "physics_3d"
 required-features = ["physics3d", "render3d"]
+
+[[example]]
+name = "audio"
+required-features = ["audio", "render2d"]

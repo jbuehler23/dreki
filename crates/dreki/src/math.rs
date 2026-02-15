@@ -9,7 +9,7 @@ pub use glam::{Mat4, Quat, Vec2, Vec3, Vec4};
 /// A 3D transform: position, rotation, and scale.
 ///
 /// Works for both 2D and 3D — 2D entities just ignore the Z axis.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct Transform {
     pub translation: Vec3,
     pub rotation: Quat,
@@ -74,7 +74,7 @@ impl Default for Transform {
 /// Used to select a sub-region of a texture for rendering — for example, a
 /// single frame from a sprite sheet. Coordinates are in UV space where (0,0) is
 /// the top-left corner and (1,1) is the bottom-right corner.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct Rect {
     pub min: Vec2,
     pub max: Vec2,

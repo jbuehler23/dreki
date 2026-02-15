@@ -48,7 +48,7 @@ use super::query::QueryParam;
 
 /// Location of an entity within the archetype storage.
 #[derive(Clone)]
-struct EntityLocation {
+pub(crate) struct EntityLocation {
     /// Which archetype this entity lives in.
     archetype_key: ArchetypeKey,
     /// Row index within that archetype.
@@ -252,10 +252,21 @@ impl World {
                             debug_value,
                         });
                     }
+                    // Hierarchy info for this entity.
+                    let parent_id = self
+                        .get::<crate::ecs::hierarchy::Parent>(entity)
+                        .map(|p| p.0.index());
+                    let child_count = self
+                        .get::<crate::ecs::hierarchy::Children>(entity)
+                        .map(|c| c.0.len() as u32)
+                        .unwrap_or(0);
+
                     entity_infos.push(crate::diag::EntitySnapshot {
                         id: entity.index(),
                         generation: entity.generation(),
                         components,
+                        parent_id,
+                        child_count,
                     });
                 }
                 Some(entity_infos)
@@ -314,6 +325,88 @@ impl World {
             },
         );
         entity
+    }
+
+    /// Spawn a child entity under a parent. Adds [`Parent`] and
+    /// [`GlobalTransform`] to the child, and updates the parent's [`Children`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if the parent entity is not alive.
+    pub fn spawn_child<B: SpawnBundle>(&mut self, parent: Entity, bundle: B) -> Entity {
+        use crate::ecs::hierarchy::{Children, GlobalTransform, Parent};
+
+        assert!(
+            self.allocator.is_alive(parent),
+            "Cannot spawn child on dead parent {:?}",
+            parent
+        );
+
+        let child = self.spawn(bundle);
+        self.insert(child, Parent(parent));
+        self.insert(child, GlobalTransform::default());
+
+        // Update parent's Children list.
+        if let Some(children) = self.get_mut::<Children>(parent) {
+            children.0.push(child);
+        } else {
+            self.insert(parent, Children(vec![child]));
+        }
+
+        child
+    }
+
+    /// Despawn an entity and all its descendants recursively.
+    ///
+    /// Also removes the entity from its parent's [`Children`] list if it has one.
+    ///
+    /// Returns `true` if the entity was alive and successfully despawned.
+    pub fn despawn_recursive(&mut self, entity: Entity) -> bool {
+        use crate::ecs::hierarchy::{Children, Parent};
+
+        if !self.allocator.is_alive(entity) {
+            return false;
+        }
+
+        // Remove from parent's Children list.
+        if let Some(parent_entity) = self.get::<Parent>(entity).map(|p| p.0) {
+            if let Some(children) = self.get_mut::<Children>(parent_entity) {
+                children.0.retain(|&c| c != entity);
+            }
+        }
+
+        // Collect all descendants via BFS.
+        let mut to_despawn = vec![entity];
+        let mut i = 0;
+        while i < to_despawn.len() {
+            let current = to_despawn[i];
+            if let Some(children) = self.get::<Children>(current) {
+                let child_list: Vec<_> = children.0.clone();
+                to_despawn.extend(child_list);
+            }
+            i += 1;
+        }
+
+        // Despawn all collected entities.
+        for e in to_despawn {
+            self.despawn(e);
+        }
+
+        true
+    }
+
+    /// Despawn every entity in the world.
+    pub fn despawn_all(&mut self) {
+        // Collect all alive entities.
+        let mut all_entities = Vec::new();
+        for arch in self.archetypes.values() {
+            for &entity in &arch.entities {
+                all_entities.push(entity);
+            }
+        }
+        for entity in all_entities {
+            self.despawn(entity);
+        }
     }
 
     /// Despawn an entity, removing it from its archetype and freeing its ID
@@ -538,6 +631,117 @@ impl World {
         );
 
         true
+    }
+
+    // ── Type-Erased Component Insertion (for scene deserialization) ──
+
+    /// Insert a type-erased component onto an entity, migrating it to a new
+    /// archetype. Used by the scene loader to insert deserialized components
+    /// without knowing the concrete type at compile time.
+    pub(crate) fn insert_any_component(
+        &mut self,
+        entity: Entity,
+        type_id: TypeId,
+        type_name: &'static str,
+        boxed: Box<dyn Any + Send + Sync>,
+    ) {
+        assert!(
+            self.allocator.is_alive(entity),
+            "Cannot insert component on dead entity {:?}",
+            entity
+        );
+
+        let loc = self.entity_locations.get(&entity.index).unwrap().clone();
+
+        // If the entity already has this component type, skip (shouldn't happen
+        // in normal scene load).
+        if let Some(arch) = self.archetypes.get(&loc.archetype_key) {
+            if arch.columns.contains_key(&type_id) {
+                return;
+            }
+        }
+
+        // Build new archetype key.
+        let mut new_type_ids = loc.archetype_key.clone();
+        new_type_ids.push(type_id);
+        let new_key = archetype_key(new_type_ids);
+
+        // Ensure target archetype exists.
+        if !self.archetypes.contains_key(&new_key) {
+            let mut columns = HashMap::new();
+            for &t in &new_key {
+                columns.insert(t, ComponentColumn::new());
+            }
+            self.archetypes
+                .insert(new_key.clone(), Archetype::new(columns));
+        }
+
+        // Take all components from old archetype.
+        let old_arch = self.archetypes.get_mut(&loc.archetype_key).unwrap();
+        let mut taken: HashMap<TypeId, Box<dyn Any + Send + Sync>> = HashMap::new();
+        for (&col_tid, col) in old_arch.columns.iter_mut() {
+            taken.insert(col_tid, col.take(loc.row));
+        }
+        old_arch.entities.swap_remove(loc.row);
+        if loc.row < old_arch.entities.len() {
+            let swapped_entity = old_arch.entities[loc.row];
+            if let Some(swapped_loc) = self.entity_locations.get_mut(&swapped_entity.index) {
+                swapped_loc.row = loc.row;
+            }
+        }
+
+        // Push into new archetype.
+        let new_arch = self.archetypes.get_mut(&new_key).unwrap();
+        let new_row = new_arch.entities.len();
+        new_arch.entities.push(entity);
+        new_arch.type_name_map.entry(type_id).or_insert(type_name);
+
+        // Push the new component.
+        new_arch
+            .columns
+            .get_mut(&type_id)
+            .unwrap()
+            .push_any(boxed);
+        // Push existing components.
+        for (&col_tid, col) in new_arch.columns.iter_mut() {
+            if col_tid != type_id {
+                if let Some(val) = taken.remove(&col_tid) {
+                    col.push_any(val);
+                }
+            }
+        }
+
+        self.entity_locations.insert(
+            entity.index,
+            EntityLocation {
+                archetype_key: new_key,
+                row: new_row,
+            },
+        );
+    }
+
+    // ── Type-Erased Access (for scene serialization) ────────────────
+
+    /// Iterate all alive entities, calling `f` with the entity and its component TypeIds.
+    pub fn for_each_entity(&self, mut f: impl FnMut(Entity, &[TypeId])) {
+        for (key, arch) in &self.archetypes {
+            for &entity in &arch.entities {
+                f(entity, key);
+            }
+        }
+    }
+
+    /// Get a type-erased reference to a component by TypeId.
+    ///
+    /// Returns `None` if the entity doesn't have that component type.
+    pub fn get_any_by_type_id(&self, entity: Entity, type_id: TypeId) -> Option<&dyn Any> {
+        if !self.allocator.is_alive(entity) {
+            return None;
+        }
+        let loc = self.entity_locations.get(&entity.index)?;
+        let arch = self.archetypes.get(&loc.archetype_key)?;
+        let col = arch.columns.get(&type_id)?;
+        Some(col.get_any(loc.row))
     }
 
     // ── Query ────────────────────────────────────────────────────────

@@ -18,10 +18,12 @@
 pub(crate) mod archetype;
 pub(crate) mod component;
 pub mod entity;
+pub mod hierarchy;
 pub(crate) mod query;
 pub mod system;
 pub mod world;
 
 pub use entity::Entity;
+pub use hierarchy::{Children, GlobalTransform, HierarchyPlugin, Parent};
 pub use system::{Schedule, System};
 pub use world::World;

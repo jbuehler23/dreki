@@ -152,6 +152,10 @@ impl Plugin for DefaultPlugins {
             let mut registry = ComponentRegistry::new();
             // Auto-register built-in types.
             registry.register::<crate::math::Transform>();
+            registry.register::<crate::ecs::hierarchy::Parent>();
+            registry.register::<crate::ecs::hierarchy::Children>();
+            registry.register::<crate::ecs::hierarchy::GlobalTransform>();
+            registry.register::<crate::scene::SceneMarker>();
             #[cfg(feature = "render2d")]
             {
                 registry.register::<crate::render2d::Camera2d>();

@@ -92,6 +92,10 @@ struct DiagSnapshot {
     assets: Option<AssetSnapshot>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     logs: Vec<LogEntrySnapshot>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    hierarchy: Option<HierarchySnapshot>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    scene: Option<SceneSnapshot>,
 }
 
 #[derive(Serialize)]
@@ -107,6 +111,14 @@ struct EntityInfo {
     id: u32,
     generation: u32,
     components: Vec<ComponentInfo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    parent_id: Option<u32>,
+    #[serde(skip_serializing_if = "is_zero_u32")]
+    child_count: u32,
+}
+
+fn is_zero_u32(v: &u32) -> bool {
+    *v == 0
 }
 
 #[derive(Serialize)]
@@ -171,6 +183,25 @@ struct LogEntrySnapshot {
     timestamp_secs: f32,
 }
 
+#[derive(Serialize)]
+struct HierarchySnapshot {
+    root_count: usize,
+    child_count: usize,
+    max_depth: u32,
+}
+
+#[derive(Serialize)]
+struct SceneSnapshot {
+    active_scene: Option<String>,
+    scenes: Vec<SceneCountEntry>,
+}
+
+#[derive(Serialize)]
+struct SceneCountEntry {
+    name: String,
+    entity_count: usize,
+}
+
 // ── Internal snapshot types (from World/AssetServer) ────────────────────
 
 pub(crate) struct ArchetypeSnapshot {
@@ -183,6 +214,8 @@ pub(crate) struct EntitySnapshot {
     pub id: u32,
     pub generation: u32,
     pub components: Vec<ComponentSnapshot>,
+    pub parent_id: Option<u32>,
+    pub child_count: u32,
 }
 
 pub(crate) struct ComponentSnapshot {
@@ -465,6 +498,8 @@ pub fn send_diagnostics(world: &mut World) {
                                 debug_value: c.debug_value,
                             })
                             .collect(),
+                        parent_id: e.parent_id,
+                        child_count: e.child_count,
                     })
                     .collect()
             }),
@@ -552,6 +587,88 @@ pub fn send_diagnostics(world: &mut World) {
         })
         .collect();
 
+    // Gather hierarchy stats.
+    let hierarchy = if world.has_component_type::<crate::ecs::hierarchy::Parent>()
+        || world.has_component_type::<crate::ecs::hierarchy::Children>()
+    {
+        let mut root_count: usize = 0;
+        let mut child_count: usize = 0;
+        let mut children_map: HashMap<u32, Vec<u32>> = HashMap::new();
+        let mut has_parent: std::collections::HashSet<u32> = std::collections::HashSet::new();
+
+        world.for_each_entity(|entity, _type_ids| {
+            if let Some(parent) = world.get::<crate::ecs::hierarchy::Parent>(entity) {
+                child_count += 1;
+                has_parent.insert(entity.index());
+                children_map
+                    .entry(parent.0.index())
+                    .or_default()
+                    .push(entity.index());
+            }
+        });
+
+        // Count roots: entities with Transform but no Parent.
+        world.for_each_entity(|entity, _type_ids| {
+            if world.get::<crate::math::Transform>(entity).is_some()
+                && !has_parent.contains(&entity.index())
+            {
+                root_count += 1;
+            }
+        });
+
+        // Compute max depth via BFS from roots.
+        let mut max_depth: u32 = 0;
+        let mut queue: std::collections::VecDeque<(u32, u32)> = std::collections::VecDeque::new();
+        for &root_id in children_map.keys() {
+            if !has_parent.contains(&root_id) {
+                queue.push_back((root_id, 1));
+            }
+        }
+        while let Some((node, depth)) = queue.pop_front() {
+            if depth > max_depth {
+                max_depth = depth;
+            }
+            if let Some(children) = children_map.get(&node) {
+                for &child in children {
+                    queue.push_back((child, depth + 1));
+                }
+            }
+        }
+
+        Some(HierarchySnapshot {
+            root_count,
+            child_count,
+            max_depth,
+        })
+    } else {
+        None
+    };
+
+    // Gather scene stats.
+    let scene = if world.has_component_type::<crate::scene::SceneMarker>() {
+        let mut scene_counts: HashMap<String, usize> = HashMap::new();
+        world.for_each_entity(|entity, _type_ids| {
+            if let Some(marker) = world.get::<crate::scene::SceneMarker>(entity) {
+                *scene_counts.entry(marker.0.clone()).or_insert(0) += 1;
+            }
+        });
+
+        let mut scenes: Vec<SceneCountEntry> = scene_counts
+            .into_iter()
+            .map(|(name, entity_count)| SceneCountEntry { name, entity_count })
+            .collect();
+        scenes.sort_by(|a, b| a.name.cmp(&b.name));
+
+        let active_scene = scenes.first().map(|s| s.name.clone());
+
+        Some(SceneSnapshot {
+            active_scene,
+            scenes,
+        })
+    } else {
+        None
+    };
+
     let snapshot = DiagSnapshot {
         fps,
         delta_ms,
@@ -566,6 +683,8 @@ pub fn send_diagnostics(world: &mut World) {
         entity_pool,
         assets,
         logs,
+        hierarchy,
+        scene,
     };
 
     // Serialize and send (errors silently ignored — fire-and-forget).

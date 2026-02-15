@@ -43,6 +43,10 @@ struct DiagSnapshot {
     assets: Option<AssetInfo>,
     #[serde(default)]
     logs: Vec<LogEntryInfo>,
+    #[serde(default)]
+    hierarchy: Option<HierarchyInfo>,
+    #[serde(default)]
+    scene: Option<SceneInfo>,
 }
 
 #[derive(Deserialize, Clone, Default)]
@@ -57,6 +61,10 @@ struct EntityInfo {
     id: u32,
     generation: u32,
     components: Vec<ComponentInfo>,
+    #[serde(default)]
+    parent_id: Option<u32>,
+    #[serde(default)]
+    child_count: u32,
 }
 
 #[derive(Deserialize, Clone, Default)]
@@ -118,6 +126,25 @@ struct LogEntryInfo {
     target: String,
     message: String,
     timestamp_secs: f32,
+}
+
+#[derive(Deserialize, Clone, Default)]
+struct HierarchyInfo {
+    root_count: usize,
+    child_count: usize,
+    max_depth: u32,
+}
+
+#[derive(Deserialize, Clone, Default)]
+struct SceneInfo {
+    active_scene: Option<String>,
+    scenes: Vec<SceneCountEntryInfo>,
+}
+
+#[derive(Deserialize, Clone, Default)]
+struct SceneCountEntryInfo {
+    name: String,
+    entity_count: usize,
 }
 
 // ── Inspect request (sent to game) ───────────────────────────────────────
@@ -957,13 +984,20 @@ fn draw_tab_bar(f: &mut ratatui::Frame, app: &App, area: Rect) {
 // ── Overview Tab ─────────────────────────────────────────────────────────
 
 fn draw_overview_tab(f: &mut ratatui::Frame, app: &App, area: Rect) {
-    // Split into: sparklines, entity pool line, ECS tree
+    // Split into: sparklines, entity pool line, hierarchy/scene info, ECS tree
     let has_pool = app.latest.entity_pool.is_some();
+    let has_hierarchy = app.latest.hierarchy.is_some();
+    let has_scene = app.latest.scene.is_some();
+    let info_lines = (has_hierarchy as u16) + (has_scene as u16);
+
     let mut constraints = vec![
         Constraint::Length(8), // sparklines
     ];
     if has_pool {
         constraints.push(Constraint::Length(1)); // entity pool line
+    }
+    if info_lines > 0 {
+        constraints.push(Constraint::Length(info_lines)); // hierarchy/scene info
     }
     constraints.push(Constraint::Min(4)); // ECS tree
 
@@ -972,14 +1006,21 @@ fn draw_overview_tab(f: &mut ratatui::Frame, app: &App, area: Rect) {
         .constraints(constraints)
         .split(area);
 
-    draw_sparklines(f, app, chunks[0]);
+    let mut chunk_idx = 0;
+    draw_sparklines(f, app, chunks[chunk_idx]);
+    chunk_idx += 1;
 
     if has_pool {
-        draw_entity_pool_line(f, app, chunks[1]);
-        draw_ecs_panel(f, app, chunks[2]);
-    } else {
-        draw_ecs_panel(f, app, chunks[1]);
+        draw_entity_pool_line(f, app, chunks[chunk_idx]);
+        chunk_idx += 1;
     }
+
+    if info_lines > 0 {
+        draw_hierarchy_scene_info(f, app, chunks[chunk_idx]);
+        chunk_idx += 1;
+    }
+
+    draw_ecs_panel(f, app, chunks[chunk_idx]);
 }
 
 fn draw_sparklines(f: &mut ratatui::Frame, app: &App, area: Rect) {
@@ -1117,6 +1158,61 @@ fn draw_entity_pool_line(f: &mut ratatui::Frame, app: &App, area: Rect) {
     f.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
+fn draw_hierarchy_scene_info(f: &mut ratatui::Frame, app: &App, area: Rect) {
+    let mut lines: Vec<Line> = Vec::new();
+
+    if let Some(h) = &app.latest.hierarchy {
+        lines.push(Line::from(vec![
+            Span::styled("  Hierarchy: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                format!("{}", h.root_count),
+                Style::default().fg(Color::White),
+            ),
+            Span::styled(" roots, ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                format!("{}", h.child_count),
+                Style::default().fg(Color::White),
+            ),
+            Span::styled(" children, depth ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                format!("{}", h.max_depth),
+                Style::default().fg(Color::White),
+            ),
+        ]));
+    }
+
+    if let Some(s) = &app.latest.scene {
+        let mut spans = vec![
+            Span::styled("  Scene: ", Style::default().fg(Color::DarkGray)),
+        ];
+        if let Some(name) = &s.active_scene {
+            spans.push(Span::styled(
+                name.clone(),
+                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            ));
+        } else {
+            spans.push(Span::styled(
+                "(none)",
+                Style::default().fg(Color::DarkGray),
+            ));
+        }
+        for entry in &s.scenes {
+            spans.push(Span::styled("  ", Style::default()));
+            spans.push(Span::styled(
+                format!("{}: ", entry.name),
+                Style::default().fg(Color::Yellow),
+            ));
+            spans.push(Span::styled(
+                format!("{} entities", entry.entity_count),
+                Style::default().fg(Color::White),
+            ));
+        }
+        lines.push(Line::from(spans));
+    }
+
+    f.render_widget(Paragraph::new(lines), area);
+}
+
 fn draw_ecs_panel(f: &mut ratatui::Frame, app: &App, area: Rect) {
     let mut title_parts = format!(
         " ECS  Entities: {}  Archetypes: {}  sort: {}",
@@ -1209,7 +1305,7 @@ fn draw_ecs_panel(f: &mut ratatui::Frame, app: &App, area: Rect) {
                         let expanded = app.expanded_entities.contains(&(*arch_idx, *entity_row));
                         let arrow = if expanded { "\u{25BC}" } else { "\u{25B6}" };
                         let cursor_marker = if is_cursor { "> " } else { "  " };
-                        Line::from(vec![
+                        let mut spans = vec![
                             Span::styled(
                                 cursor_marker.to_string(),
                                 Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
@@ -1227,7 +1323,22 @@ fn draw_ecs_panel(f: &mut ratatui::Frame, app: &App, area: Rect) {
                                     Style::default().fg(Color::White)
                                 },
                             ),
-                        ])
+                        ];
+                        // Show parent badge.
+                        if let Some(pid) = ent.parent_id {
+                            spans.push(Span::styled(
+                                format!("  child of #{}", pid),
+                                Style::default().fg(Color::DarkGray),
+                            ));
+                        }
+                        // Show children count.
+                        if ent.child_count > 0 {
+                            spans.push(Span::styled(
+                                format!("  ({} children)", ent.child_count),
+                                Style::default().fg(Color::DarkGray),
+                            ));
+                        }
+                        Line::from(spans)
                     } else {
                         Line::raw("")
                     }

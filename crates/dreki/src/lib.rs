@@ -13,6 +13,7 @@ pub mod input;
 pub mod math;
 pub mod prelude;
 pub mod render;
+pub mod scene;
 pub mod time;
 pub mod window;
 

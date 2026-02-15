@@ -18,7 +18,7 @@ editor = ["dep:egui", "dep:egui-wgpu", "dep:egui-winit"]
 winit = "0.30"
 wgpu = "27"
 pollster = "0.4"
-glam = "0.30"
+glam = { version = "0.30", features = ["serde"] }
 log = "0.4"
 env_logger = "0.11"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
@@ -65,6 +65,15 @@ required-features = ["physics2d", "render2d"]
 [[example]]
 name = "physics_3d"
 required-features = ["physics3d", "render3d"]
+
+[[example]]
+name = "scene_hierarchy"
+
+[[example]]
+name = "scene_save_load"
+
+[[example]]
+name = "scene_switching"
 
 [[example]]
 name = "audio"

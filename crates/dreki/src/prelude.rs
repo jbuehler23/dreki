@@ -2,7 +2,11 @@
 
 pub use crate::app::{App, DefaultPlugins, Plugin};
 pub use crate::asset::AssetServer;
-pub use crate::ecs::{Entity, Schedule, System, World};
+pub use crate::ecs::{Children, Entity, GlobalTransform, HierarchyPlugin, Parent, Schedule, System, World};
+pub use crate::scene::{
+    SceneData, SceneMarker, SceneRegistry, load_scene, load_scene_from_file, load_scene_tagged,
+    save_scene, save_scene_to_file, switch_scene, unload_scene,
+};
 pub use crate::input::{CursorPosition, Input, KeyCode, MouseButton};
 pub use crate::math::{Mat4, Quat, Rect, Transform, Vec2, Vec3, Vec4};
 pub use crate::render::{ClearColor, GpuContext};

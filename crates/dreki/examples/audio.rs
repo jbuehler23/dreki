@@ -6,14 +6,14 @@
 
 use std::path::PathBuf;
 
-use kera::prelude::*;
+use dreki::prelude::*;
 
 fn main() {
     env_logger::init();
 
     App::new()
         .add_plugins(DefaultPlugins)
-        .set_title("kera — audio (SPACE=blip, M=toggle music, UP/DOWN=volume)")
+        .set_title("dreki — audio (SPACE=blip, M=toggle music, UP/DOWN=volume)")
         .insert_resource(ClearColor([0.08, 0.06, 0.12, 1.0]))
         .add_plugins(AudioPlugin)
         .add_startup_system(setup)

@@ -1,4 +1,4 @@
-//! Diagnostics sender — ships real-time metrics to `kera-telemetry` over UDP.
+//! Diagnostics sender — ships real-time metrics to `dreki-telemetry` over UDP.
 //!
 //! Enabled by the `diagnostics` feature flag. When active, a [`DiagSender`]
 //! resource is inserted into the world and [`send_diagnostics`] is called once
@@ -385,7 +385,7 @@ pub fn init_logger() {
     let logger = DIAG_LOGGER.get_or_init(|| DiagLogger { inner });
 
     if log::set_logger(logger).is_err() {
-        eprintln!("[kera] Warning: a logger is already set. Log capture disabled.");
+        eprintln!("[dreki] Warning: a logger is already set. Log capture disabled.");
         return;
     }
     log::set_max_level(max_level.max(log::LevelFilter::Info));

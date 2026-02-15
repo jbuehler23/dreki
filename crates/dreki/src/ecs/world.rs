@@ -781,7 +781,7 @@ impl World {
 }
 
 /// Strip the module path from a fully-qualified type name, keeping only the
-/// short name (e.g. `kera::math::Transform` → `Transform`).
+/// short name (e.g. `dreki::math::Transform` → `Transform`).
 #[cfg(feature = "diagnostics")]
 fn short_type_name(full: &str) -> String {
     full.rsplit("::").next().unwrap_or(full).to_string()

@@ -1,9 +1,9 @@
-//! # Kera — Minimal Game Framework
+//! # Dreki — Minimal Game Framework
 //!
 //! A lightweight game framework for rapid prototyping, built with a custom ECS,
 //! wgpu rendering, and hot-reloadable assets.
 //!
-//! Start with `use kera::prelude::*` and build an [`App`](app::App).
+//! Start with `use dreki::prelude::*` and build an [`App`](app::App).
 
 
 pub mod app;

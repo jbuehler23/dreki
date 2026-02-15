@@ -1,13 +1,13 @@
 //! Hello 2D — colored quads with WASD camera movement.
 
-use kera::prelude::*;
+use dreki::prelude::*;
 
 fn main() {
     env_logger::init();
 
     App::new()
         .add_plugins(DefaultPlugins)
-        .set_title("kera — hello 2d")
+        .set_title("dreki — hello 2d")
         .insert_resource(ClearColor([0.15, 0.15, 0.2, 1.0]))
         .add_startup_system(setup)
         .add_system(move_camera)

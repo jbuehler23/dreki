@@ -1,9 +1,9 @@
-//! kera-telemetry — TUI diagnostics tool for kera games.
+//! dreki-telemetry — TUI diagnostics tool for dreki games.
 //!
-//! Connects to a running kera game via UDP and displays real-time metrics
+//! Connects to a running dreki game via UDP and displays real-time metrics
 //! in an interactive btop-style terminal dashboard using ratatui.
 //!
-//! Run a kera game with `--features diagnostics`, then run `cargo run -p kera-telemetry`.
+//! Run a dreki game with `--features diagnostics`, then run `cargo run -p dreki-telemetry`.
 
 use std::collections::{HashSet, VecDeque};
 use std::io;
@@ -21,7 +21,7 @@ use ratatui::widgets::{Block, Borders, Paragraph, Sparkline};
 use ratatui::Terminal;
 use serde::Deserialize;
 
-// ── Wire types (must match kera's JSON format) ─────────────────────────
+// ── Wire types (must match dreki's JSON format) ─────────────────────────
 
 #[derive(Deserialize, Clone, Default)]
 struct DiagSnapshot {
@@ -555,7 +555,7 @@ impl App {
 
 fn main() -> io::Result<()> {
     let recv_socket = UdpSocket::bind("127.0.0.1:9100")
-        .expect("Failed to bind UDP port 9100 — is another kera-telemetry running?");
+        .expect("Failed to bind UDP port 9100 — is another dreki-telemetry running?");
     recv_socket
         .set_nonblocking(true)
         .expect("Failed to set non-blocking");
@@ -918,7 +918,7 @@ fn draw_header(f: &mut ratatui::Frame, app: &App, area: Rect) {
     ]);
 
     let block = Block::default()
-        .title(" kera-telemetry ")
+        .title(" dreki-telemetry ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Cyan));
     let paragraph = Paragraph::new(text).block(block);

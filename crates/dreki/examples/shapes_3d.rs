@@ -1,13 +1,13 @@
 //! 3D Shapes — spheres, cuboids, cylinders, and planes with PBR materials.
 
-use kera::prelude::*;
+use dreki::prelude::*;
 
 fn main() {
     env_logger::init();
 
     App::new()
         .add_plugins(DefaultPlugins)
-        .set_title("kera — 3d shapes")
+        .set_title("dreki — 3d shapes")
         .insert_resource(ClearColor([0.08, 0.08, 0.12, 1.0]))
         .insert_resource(AmbientLight {
             color: [1.0, 1.0, 1.0],

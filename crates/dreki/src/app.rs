@@ -1,13 +1,13 @@
 //! App builder and plugin system.
 //!
-//! The [`App`] is the entry point for a kera game. It provides a builder
+//! The [`App`] is the entry point for a dreki game. It provides a builder
 //! pattern for registering plugins, resources, and systems, then runs the
 //! event loop.
 //!
 //! ## Example
 //!
 //! ```ignore
-//! use kera::prelude::*;
+//! use dreki::prelude::*;
 //!
 //! fn main() {
 //!     App::new()
@@ -50,7 +50,7 @@ impl App {
             world: World::new(),
             startup_systems: Schedule::new(),
             systems: Schedule::new(),
-            title: String::from("kera"),
+            title: String::from("dreki"),
         }
     }
 

@@ -1,13 +1,13 @@
 //! 2D Shapes — circles, rectangles, triangles, and polygons.
 
-use kera::prelude::*;
+use dreki::prelude::*;
 
 fn main() {
     env_logger::init();
 
     App::new()
         .add_plugins(DefaultPlugins)
-        .set_title("kera — 2d shapes")
+        .set_title("dreki — 2d shapes")
         .insert_resource(ClearColor([0.1, 0.1, 0.15, 1.0]))
         .add_startup_system(setup)
         .add_system(move_camera)

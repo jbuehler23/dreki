@@ -5,7 +5,7 @@
 
 use std::path::PathBuf;
 
-use kera::prelude::*;
+use dreki::prelude::*;
 
 fn main() {
     env_logger::init();
@@ -17,7 +17,7 @@ fn main() {
 
     App::new()
         .add_plugins(DefaultPlugins)
-        .set_title("kera — hot reload test")
+        .set_title("dreki — hot reload test")
         .insert_resource(ClearColor([0.12, 0.12, 0.18, 1.0]))
         .insert_resource(TexturePath(test_png))
         .add_startup_system(setup)

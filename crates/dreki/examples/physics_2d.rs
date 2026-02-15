@@ -3,14 +3,14 @@
 //! Click to spawn balls at the cursor. Press R to reset.
 //! WASD to pan the camera.
 
-use kera::prelude::*;
+use dreki::prelude::*;
 
 fn main() {
     env_logger::init();
 
     App::new()
         .add_plugins(DefaultPlugins)
-        .set_title("kera — 2d physics (click to spawn, F1 wireframes)")
+        .set_title("dreki — 2d physics (click to spawn, F1 wireframes)")
         .insert_resource(ClearColor([0.08, 0.08, 0.12, 1.0]))
         .add_plugins(Physics2dPlugin::new().with_gravity(Vec2::new(0.0, -980.0)))
         .insert_resource(SpawnCounter(0u32))

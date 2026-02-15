@@ -1,4 +1,4 @@
-//! Convenience re-exports — `use kera::prelude::*` for the common items.
+//! Convenience re-exports — `use dreki::prelude::*` for the common items.
 
 pub use crate::app::{App, DefaultPlugins, Plugin};
 pub use crate::asset::AssetServer;

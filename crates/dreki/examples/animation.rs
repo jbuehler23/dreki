@@ -2,14 +2,14 @@
 
 use std::path::PathBuf;
 
-use kera::prelude::*;
+use dreki::prelude::*;
 
 fn main() {
     env_logger::init();
 
     App::new()
         .add_plugins(DefaultPlugins)
-        .set_title("kera — hello animation")
+        .set_title("dreki — hello animation")
         .insert_resource(ClearColor([0.0, 0.0, 0.0, 1.0]))
         .add_startup_system(setup)
         .add_system(move_camera)

@@ -8,7 +8,7 @@
 //! # Example
 //!
 //! ```ignore
-//! use kera::prelude::*;
+//! use dreki::prelude::*;
 //!
 //! let mut engine = AudioEngine::new();
 //! let sfx = SoundData::from_file("assets/blip.ogg").unwrap();

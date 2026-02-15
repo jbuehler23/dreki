@@ -53,7 +53,7 @@ pub(crate) fn render_frame(world: &mut World) -> Result<(), wgpu::SurfaceError> 
         let mut encoder = gpu
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("kera frame encoder"),
+                label: Some("dreki frame encoder"),
             });
 
         {

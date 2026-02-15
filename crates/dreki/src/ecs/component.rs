@@ -21,7 +21,7 @@
 //!
 //! - **hecs / bevy_ecs**: `Vec<u8>` + `Layout` (BlobVec). Cache-friendly,
 //!   lots of unsafe.
-//! - **kera**: `Vec<Box<dyn Any>>`. Zero unsafe, simple, easy to audit.
+//! - **dreki**: `Vec<Box<dyn Any>>`. Zero unsafe, simple, easy to audit.
 
 use std::any::{Any, TypeId};
 

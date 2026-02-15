@@ -2,14 +2,14 @@
 //!
 //! Demonstrates Camera3d, Mesh3d, PBR Material, and lighting.
 
-use kera::prelude::*;
+use dreki::prelude::*;
 
 fn main() {
     env_logger::init();
 
     App::new()
         .add_plugins(DefaultPlugins)
-        .set_title("kera — hello 3d")
+        .set_title("dreki — hello 3d")
         .insert_resource(ClearColor([0.1, 0.1, 0.15, 1.0]))
         .insert_resource(AmbientLight {
             color: [1.0, 1.0, 1.0],

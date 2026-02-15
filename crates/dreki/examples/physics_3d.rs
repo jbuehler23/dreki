@@ -3,14 +3,14 @@
 //! Press Space to launch a sphere at the pyramid. Press R to reset.
 //! WASD + Space/Shift to move the camera. Mouse click also launches a sphere.
 
-use kera::prelude::*;
+use dreki::prelude::*;
 
 fn main() {
     env_logger::init();
 
     App::new()
         .add_plugins(DefaultPlugins)
-        .set_title("kera — 3d physics (space to shoot, F1 wireframes)")
+        .set_title("dreki — 3d physics (space to shoot, F1 wireframes)")
         .insert_resource(ClearColor([0.08, 0.08, 0.12, 1.0]))
         .insert_resource(AmbientLight {
             color: [1.0, 1.0, 1.0],

@@ -17,7 +17,7 @@
 
 use std::collections::VecDeque;
 
-use crate::app::Plugin;
+
 use crate::ecs::world::World;
 use crate::math::{Mat4, Transform};
 
@@ -86,15 +86,6 @@ pub fn propagate_transforms(world: &mut World) {
                 queue.push_back((child, global_matrix));
             }
         }
-    }
-}
-
-/// Plugin that registers the [`propagate_transforms`] system.
-pub struct HierarchyPlugin;
-
-impl Plugin for HierarchyPlugin {
-    fn build(&self, app: &mut crate::app::App) {
-        app.systems.add_system(propagate_transforms);
     }
 }
 

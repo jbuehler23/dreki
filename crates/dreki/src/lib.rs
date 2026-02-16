@@ -3,19 +3,19 @@
 //! A lightweight game framework for rapid prototyping, built with a custom ECS,
 //! wgpu rendering, and hot-reloadable assets.
 //!
-//! Start with `use dreki::prelude::*` and build an [`App`](app::App).
+//! Start with `use dreki::prelude::*` and build a [`Game`](game::Game).
 
-
-pub mod app;
 pub mod asset;
+pub mod context;
 pub mod ecs;
+pub mod game;
 pub mod input;
 pub mod math;
 pub mod prelude;
 pub mod render;
 pub mod scene;
 pub mod time;
-pub mod window;
+pub(crate) mod window;
 
 #[cfg(feature = "render2d")]
 pub mod animation;

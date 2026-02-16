@@ -11,15 +11,14 @@ use dreki::prelude::*;
 fn main() {
     env_logger::init();
 
-    App::new()
-        .add_plugins(DefaultPlugins)
-        .set_title("dreki — audio (SPACE=blip, M=toggle music, UP/DOWN=volume)")
-        .insert_resource(ClearColor([0.08, 0.06, 0.12, 1.0]))
-        .add_plugins(AudioPlugin)
-        .add_startup_system(setup)
-        .add_system(play_blip)
-        .add_system(toggle_music)
-        .add_system(adjust_volume)
+    Game::new("dreki — audio (SPACE=blip, M=toggle music, UP/DOWN=volume)")
+        .resource(ClearColor([0.08, 0.06, 0.12, 1.0]))
+        .resource(AudioEngine::new())
+        .world_system(audio_system)
+        .setup(setup)
+        .update(play_blip)
+        .update(toggle_music)
+        .update(adjust_volume)
         .run();
 }
 
@@ -42,64 +41,54 @@ fn asset_path(relative: &str) -> String {
         .into_owned()
 }
 
-fn setup(world: &mut World) {
-    // Camera (required for the render2d pass).
-    world.spawn((Transform::default(), Camera2d));
+fn setup(ctx: &mut Context) {
+    ctx.spawn("camera").insert(Transform::default()).insert(Camera2d);
 
     // Load sound data.
     let blip = SoundData::from_file(asset_path("sounds/blip.ogg"))
         .expect("Failed to load blip.ogg");
-    world.insert_resource(BlipSfx(blip));
+    ctx.world.insert_resource(BlipSfx(blip));
 
     // Start background music (looping).
     let music = SoundData::from_file(asset_path("sounds/music.ogg"))
         .expect("Failed to load music.ogg")
         .looping()
         .volume(0.5);
-    let handle = world.resource_mut::<AudioEngine>().play(&music);
-    world.insert_resource(MusicHandle {
+    let handle = ctx.world.resource_mut::<AudioEngine>().play(&music);
+    ctx.world.insert_resource(MusicHandle {
         handle,
         paused: false,
         volume: 0.5,
     });
 
-    // Spawn an entity with an AudioSource component (demonstrates component-based audio).
-    // This won't auto-play since auto_play is false by default.
+    // Spawn an entity with an AudioSource component.
     let sfx_data = SoundData::from_file(asset_path("sounds/blip.ogg"))
         .expect("Failed to load blip.ogg");
-    world.spawn((
-        Transform::default(),
-        AudioSource::new(sfx_data).with_volume(0.3),
-    ));
+    ctx.create()
+        .insert(Transform::default())
+        .insert(AudioSource::new(sfx_data).with_volume(0.3));
 
     // Display instructions via a text entity.
-    let font = load_font(world, &asset_path("LiberationSans-Regular.ttf"), 24.0);
-    world.spawn((
-        Transform::from_xyz(-280.0, 200.0, 0.0),
-        Text::new("SPACE = blip  |  M = music  |  UP/DOWN = volume", font)
-            .color(Color::rgb(0.7, 0.7, 0.8)),
-    ));
+    let font = load_font(&mut ctx.world, &asset_path("LiberationSans-Regular.ttf"), 24.0);
+    ctx.create()
+        .insert(Transform::from_xyz(-280.0, 200.0, 0.0))
+        .insert(Text::new("SPACE = blip  |  M = music  |  UP/DOWN = volume", font)
+            .color(Color::rgb(0.7, 0.7, 0.8)));
 }
 
-fn play_blip(world: &mut World) {
-    if !world
-        .resource::<Input<KeyCode>>()
-        .just_pressed(KeyCode::Space)
-    {
+fn play_blip(ctx: &mut Context) {
+    if !ctx.input.just_pressed(KeyCode::Space) {
         return;
     }
-    let sfx = world.resource::<BlipSfx>().0.clone();
-    world.resource_mut::<AudioEngine>().play(&sfx);
+    let sfx = ctx.world.resource::<BlipSfx>().0.clone();
+    ctx.world.resource_mut::<AudioEngine>().play(&sfx);
 }
 
-fn toggle_music(world: &mut World) {
-    if !world
-        .resource::<Input<KeyCode>>()
-        .just_pressed(KeyCode::KeyM)
-    {
+fn toggle_music(ctx: &mut Context) {
+    if !ctx.input.just_pressed(KeyCode::KeyM) {
         return;
     }
-    let music = world.resource_mut::<MusicHandle>();
+    let music = ctx.world.resource_mut::<MusicHandle>();
     if music.paused {
         music.handle.resume();
         music.paused = false;
@@ -109,15 +98,14 @@ fn toggle_music(world: &mut World) {
     }
 }
 
-fn adjust_volume(world: &mut World) {
-    let input = world.resource::<Input<KeyCode>>();
-    let up = input.just_pressed(KeyCode::ArrowUp);
-    let down = input.just_pressed(KeyCode::ArrowDown);
+fn adjust_volume(ctx: &mut Context) {
+    let up = ctx.input.just_pressed(KeyCode::ArrowUp);
+    let down = ctx.input.just_pressed(KeyCode::ArrowDown);
     if !up && !down {
         return;
     }
 
-    let music = world.resource_mut::<MusicHandle>();
+    let music = ctx.world.resource_mut::<MusicHandle>();
     if up {
         music.volume = (music.volume + 0.1).min(1.0);
     }

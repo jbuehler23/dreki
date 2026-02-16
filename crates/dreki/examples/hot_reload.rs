@@ -15,28 +15,22 @@ fn main() {
         .join("assets")
         .join("test.png");
 
-    App::new()
-        .add_plugins(DefaultPlugins)
-        .set_title("dreki — hot reload test")
-        .insert_resource(ClearColor([0.12, 0.12, 0.18, 1.0]))
-        .insert_resource(TexturePath(test_png))
-        .add_startup_system(setup)
+    Game::new("dreki — hot reload test")
+        .resource(ClearColor([0.12, 0.12, 0.18, 1.0]))
+        .resource(TexturePath(test_png))
+        .setup(setup)
         .run();
 }
 
 struct TexturePath(PathBuf);
 
-fn setup(world: &mut World) {
-    world.spawn((Transform::default(), Camera2d));
+fn setup(ctx: &mut Context) {
+    ctx.spawn("camera").insert(Transform::default()).insert(Camera2d);
 
-    let path = world.resource::<TexturePath>().0.to_string_lossy().to_string();
-    let tex = load_texture(world, &path);
+    let path = ctx.world.resource::<TexturePath>().0.to_string_lossy().to_string();
+    let tex = load_texture(&mut ctx.world, &path);
 
-    world.spawn((
-        Transform::default(),
-        Sprite {
-            texture: Some(tex),
-            ..Default::default()
-        },
-    ));
+    ctx.create()
+        .insert(Transform::default())
+        .insert(Sprite::new().texture(tex));
 }

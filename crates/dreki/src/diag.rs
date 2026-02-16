@@ -18,7 +18,6 @@ use serde::Serialize;
 
 use crate::asset::AssetServer;
 use crate::ecs::world::World;
-use crate::time::Time;
 
 // ── DiagSender ───────────────────────────────────────────────────────────
 
@@ -442,7 +441,7 @@ pub(crate) fn drain_captured_logs(max: usize) -> Vec<(String, String, String, f3
 // ── send_diagnostics ─────────────────────────────────────────────────────
 
 /// Called once per frame. Throttled to 10 Hz internally.
-pub fn send_diagnostics(world: &mut World) {
+pub fn send_diagnostics(world: &mut World, time: &crate::time::Time) {
     // Extract sender to avoid borrow conflict.
     let Some(mut sender) = world.resource_remove::<DiagSender>() else {
         return;
@@ -460,17 +459,12 @@ pub fn send_diagnostics(world: &mut World) {
     sender.last_send = now;
 
     // Gather time stats.
-    let (fps, delta_ms, frame_count, elapsed_secs) =
-        if let Some(time) = world.get_resource::<Time>() {
-            (
-                time.fps(),
-                time.delta().as_secs_f32() * 1000.0,
-                time.frame_count(),
-                time.elapsed_secs(),
-            )
-        } else {
-            (0.0, 0.0, 0, 0.0)
-        };
+    let (fps, delta_ms, frame_count, elapsed_secs) = (
+        time.fps(),
+        time.delta().as_secs_f32() * 1000.0,
+        time.frame_count(),
+        time.elapsed_secs(),
+    );
 
     // Gather ECS stats.
     let expanded = &sender.expanded_archetypes;

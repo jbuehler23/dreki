@@ -17,22 +17,16 @@ A lightweight game framework for rapid prototyping, built with a custom ECS, wgp
 use dreki::prelude::*;
 
 fn main() {
-    App::new()
-        .add_plugins(DefaultPlugins)
-        .add_startup_system(setup)
+    Game::new("My Game")
+        .setup(setup)
         .run();
 }
 
-fn setup(world: &mut World) {
-    world.spawn((Transform::default(), Camera2d));
-    world.spawn((
-        Transform::from_xy(0.0, 0.0),
-        Sprite {
-            color: Color::RED,
-            size: Vec2::new(100.0, 100.0),
-            ..Default::default()
-        },
-    ));
+fn setup(ctx: &mut Context) {
+    ctx.spawn("camera").insert(Transform::default()).insert(Camera2d);
+    ctx.create()
+        .insert(Transform::from_xy(0.0, 0.0))
+        .insert(Sprite::new().color(Color::RED).size(100.0, 100.0));
 }
 ```
 
@@ -43,6 +37,10 @@ cargo run --example 2d
 cargo run --example 3d
 cargo run --example animation
 cargo run --example text
+cargo run --example audio
+cargo run --example scene_hierarchy
+cargo run --example scene_save_load
+cargo run --example scene_switching
 cargo run --example physics_2d --features physics2d
 cargo run --example physics_3d --features physics3d
 ```

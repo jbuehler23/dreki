@@ -29,7 +29,6 @@
 use crate::ecs::World;
 use crate::math::{Rect, Transform, Vec2};
 use crate::render2d::{Color, Sprite};
-use crate::time::Time;
 
 // ---------------------------------------------------------------------------
 // Sprite Sheet Animation
@@ -229,8 +228,7 @@ impl AnimationPlayer {
 }
 
 /// System: advance sprite-sheet animations and update `Sprite.texture_rect`.
-pub fn animate_sprites(world: &mut World) {
-    let dt = world.resource::<Time>().delta_secs();
+pub fn animate_sprites(world: &mut World, dt: f32) {
 
     world.query::<(&mut AnimationPlayer, &mut Sprite)>(|_entity, (player, sprite)| {
         if player.finished || player.clip.frames.is_empty() {
@@ -441,27 +439,12 @@ fn apply_color_tween(target: &TweenTarget, t: f32, color: &mut Color) {
     }
 }
 
-// ── Plugin ───────────────────────────────────────────────────────────
-
-/// Plugin: registers the [`animate_sprites`] and [`advance_tweens`] systems.
-///
-/// Included automatically by [`DefaultPlugins`](crate::app::DefaultPlugins).
-/// Can also be added explicitly if you are not using `DefaultPlugins`.
-pub struct AnimationPlugin;
-
-impl crate::app::Plugin for AnimationPlugin {
-    fn build(&self, app: &mut crate::app::App) {
-        app.systems.add_system(animate_sprites);
-        app.systems.add_system(advance_tweens);
-    }
-}
 
 /// System: advance tweens and apply interpolated values to Transform/Sprite.
 ///
 /// Entities with `Tween` + `Transform` get transform properties applied.
 /// Entities with `Tween` + `Sprite` get color properties applied.
-pub fn advance_tweens(world: &mut World) {
-    let dt = world.resource::<Time>().delta_secs();
+pub fn advance_tweens(world: &mut World, dt: f32) {
 
     // Pass 1: advance timers + apply to Transform
     world.query::<(&mut Tween, &mut Transform)>(|_entity, (tween, transform)| {

@@ -2,10 +2,10 @@
 //!
 //! Spawns colored sprites, lets you modify the scene, then save/load to disk.
 //!
-//! - **S** — save current scene to `/tmp/dreki_scene.json`
-//! - **L** — clear and reload from that file
+//! - **F5** — save current scene to `/tmp/dreki_scene.json`
+//! - **F9** — clear and reload from that file
 //! - **Space** — spawn a new random sprite
-//! - **C** — clear all entities (except camera)
+//! - **X** — clear all entities (except camera)
 //! - **WASD** — move camera
 //!
 //! Run with: `cargo run -p dreki --example scene_save_load`
@@ -28,10 +28,6 @@ struct SpriteInfo {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct Label(String);
 
-// ── Markers ──────────────────────────────────────────────────────────────
-
-struct SceneEntity;
-
 // ── State ────────────────────────────────────────────────────────────────
 
 struct SpawnIndex(u32);
@@ -39,19 +35,16 @@ struct SpawnIndex(u32);
 fn main() {
     env_logger::init();
 
-    App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugins(HierarchyPlugin)
-        .set_title("dreki — scene save/load (S save, L load, Space spawn, C clear)")
-        .insert_resource(ClearColor([0.1, 0.1, 0.15, 1.0]))
-        .insert_resource(SpawnIndex(0))
-        .add_startup_system(setup)
-        .add_system(save_on_s)
-        .add_system(load_on_l)
-        .add_system(spawn_on_space)
-        .add_system(clear_on_c)
-        .add_system(sync_sprites)
-        .add_system(move_camera)
+    Game::new("dreki — scene save/load (F5 save, F9 load, Space spawn, X clear)")
+        .resource(ClearColor([0.1, 0.1, 0.15, 1.0]))
+        .resource(SpawnIndex(0))
+        .setup(setup)
+        .update(save_on_s)
+        .update(load_on_l)
+        .update(spawn_on_space)
+        .update(clear_on_c)
+        .update(sync_sprites)
+        .update(move_camera)
         .run();
 }
 
@@ -63,8 +56,8 @@ fn make_registry() -> SceneRegistry {
     registry
 }
 
-fn setup(world: &mut World) {
-    world.spawn((Transform::default(), Camera2d));
+fn setup(ctx: &mut Context) {
+    ctx.spawn("camera").insert(Transform::default()).insert(Camera2d);
 
     // Spawn a few initial entities at varied positions.
     let configs = [
@@ -76,31 +69,23 @@ fn setup(world: &mut World) {
     ];
 
     for &(x, y, r, g, b, w, h, label) in &configs {
-        spawn_scene_entity(world, x, y, r, g, b, w, h, label);
+        spawn_scene_entity(&mut ctx.world, x, y, r, g, b, w, h, label);
     }
 
     // Demonstrate hierarchy: spawn a parent with a child.
-    let parent = world.spawn((
+    let parent = ctx.world.spawn((
         Transform::from_xy(0.0, 150.0),
         SpriteInfo { r: 1.0, g: 0.5, b: 0.0, width: 80.0, height: 80.0 },
-        Sprite {
-            color: Color::rgb(1.0, 0.5, 0.0),
-            size: Vec2::new(80.0, 80.0),
-            ..Default::default()
-        },
+        Sprite::new().color(Color::rgb(1.0, 0.5, 0.0)).size(80.0, 80.0),
         Label("Parent".into()),
-        SceneEntity,
     ));
-    world.spawn_child(parent, (
+    ctx.world.tag(parent, "scene-entity");
+
+    ctx.world.spawn_child(parent, (
         Transform::from_xy(60.0, 0.0),
         SpriteInfo { r: 0.0, g: 0.8, b: 0.8, width: 40.0, height: 40.0 },
-        Sprite {
-            color: Color::rgb(0.0, 0.8, 0.8),
-            size: Vec2::new(40.0, 40.0),
-            ..Default::default()
-        },
+        Sprite::new().color(Color::rgb(0.0, 0.8, 0.8)).size(40.0, 40.0),
         Label("Child".into()),
-        SceneEntity,
     ));
 }
 
@@ -111,31 +96,28 @@ fn spawn_scene_entity(
     w: f32, h: f32,
     label: &str,
 ) -> Entity {
-    world.spawn((
+    let entity = world.spawn((
         Transform::from_xy(x, y),
         SpriteInfo { r, g, b, width: w, height: h },
-        Sprite {
-            color: Color::rgb(r, g, b),
-            size: Vec2::new(w, h),
-            ..Default::default()
-        },
+        Sprite::new().color(Color::rgb(r, g, b)).size(w, h),
         Label(label.to_string()),
-        SceneEntity,
-    ))
+    ));
+    world.tag(entity, "scene-entity");
+    entity
 }
 
-fn save_on_s(world: &mut World) {
-    if !world.resource::<Input<KeyCode>>().just_pressed(KeyCode::KeyS) {
+fn save_on_s(ctx: &mut Context) {
+    if !ctx.input.just_pressed(KeyCode::F5) {
         return;
     }
 
     let registry = make_registry();
-    save_scene_to_file(world, &registry, SAVE_PATH);
+    save_scene_to_file(&ctx.world, &registry, SAVE_PATH);
     log::info!("Scene saved to {}", SAVE_PATH);
 }
 
-fn load_on_l(world: &mut World) {
-    if !world.resource::<Input<KeyCode>>().just_pressed(KeyCode::KeyL) {
+fn load_on_l(ctx: &mut Context) {
+    if !ctx.input.just_pressed(KeyCode::F9) {
         return;
     }
 
@@ -145,29 +127,24 @@ fn load_on_l(world: &mut World) {
     }
 
     // Despawn all scene entities, keep the camera.
-    let mut to_despawn = Vec::new();
-    world.query::<(&SceneEntity,)>(|entity, _| {
-        to_despawn.push(entity);
-    });
-    for e in to_despawn {
-        world.despawn_recursive(e);
+    for e in ctx.world.tagged("scene-entity") {
+        ctx.world.despawn_recursive(e);
     }
 
     let registry = make_registry();
-    let loaded = load_scene_from_file(world, &registry, SAVE_PATH);
+    let loaded = load_scene_from_file(&mut ctx.world, &registry, SAVE_PATH);
     log::info!("Loaded {} entities from {}", loaded.len(), SAVE_PATH);
 }
 
-fn spawn_on_space(world: &mut World) {
-    if !world.resource::<Input<KeyCode>>().just_pressed(KeyCode::Space) {
+fn spawn_on_space(ctx: &mut Context) {
+    if !ctx.input.just_pressed(KeyCode::Space) {
         return;
     }
 
-    let idx = &mut world.resource_mut::<SpawnIndex>().0;
+    let idx = &mut ctx.world.resource_mut::<SpawnIndex>().0;
     *idx += 1;
     let i = *idx;
 
-    // Vary position and color.
     let x = ((i * 97) % 500) as f32 - 250.0;
     let y = ((i * 53) % 400) as f32 - 200.0;
     let colors = [
@@ -181,74 +158,60 @@ fn spawn_on_space(world: &mut World) {
     let (r, g, b) = colors[(i as usize) % colors.len()];
     let size = 30.0 + (i % 5) as f32 * 15.0;
 
-    spawn_scene_entity(world, x, y, r, g, b, size, size, &format!("Spawn-{}", i));
+    spawn_scene_entity(&mut ctx.world, x, y, r, g, b, size, size, &format!("Spawn-{}", i));
 }
 
-fn clear_on_c(world: &mut World) {
-    if !world.resource::<Input<KeyCode>>().just_pressed(KeyCode::KeyC) {
+fn clear_on_c(ctx: &mut Context) {
+    if !ctx.input.just_pressed(KeyCode::KeyX) {
         return;
     }
 
-    let mut to_despawn = Vec::new();
-    world.query::<(&SceneEntity,)>(|entity, _| {
-        to_despawn.push(entity);
-    });
-    // Only despawn root entities to avoid double-despawning children.
+    let to_despawn = ctx.world.tagged("scene-entity");
     let roots: Vec<_> = to_despawn
         .iter()
         .copied()
-        .filter(|&e| world.get::<Parent>(e).is_none())
+        .filter(|&e| ctx.world.get::<Parent>(e).is_none())
         .collect();
     for e in roots {
-        world.despawn_recursive(e);
+        ctx.world.despawn_recursive(e);
     }
 }
 
 /// After loading from file, entities have SpriteInfo but no Sprite.
 /// This system adds the visual Sprite component based on SpriteInfo.
-fn sync_sprites(world: &mut World) {
+fn sync_sprites(ctx: &mut Context) {
     let mut needs_sprite = Vec::new();
-    world.query::<(&SpriteInfo,)>(|entity, (info,)| {
-        needs_sprite.push((
-            entity,
-            info.r, info.g, info.b,
-            info.width, info.height,
-        ));
+    ctx.world.query::<(&SpriteInfo,)>(|entity, (info,)| {
+        needs_sprite.push((entity, info.r, info.g, info.b, info.width, info.height));
     });
 
     for (entity, r, g, b, w, h) in needs_sprite {
-        // Only add Sprite if the entity doesn't have one yet.
-        if world.get::<Sprite>(entity).is_some() {
+        if ctx.world.get::<Sprite>(entity).is_some() {
             continue;
         }
-        world.insert(entity, Sprite {
-            color: Color::rgb(r, g, b),
-            size: Vec2::new(w, h),
-            ..Default::default()
-        });
-        // Also mark as scene entity for cleanup.
-        if world.get::<SceneEntity>(entity).is_none() {
-            world.insert(entity, SceneEntity);
+        ctx.world.insert(entity, Sprite::new().color(Color::rgb(r, g, b)).size(w, h));
+        // Tag loaded entities for cleanup.
+        if !ctx.world.tagged("scene-entity").contains(&entity) {
+            ctx.world.tag(entity, "scene-entity");
         }
     }
 }
 
-fn move_camera(world: &mut World) {
-    let dt = world.resource::<Time>().delta_secs();
+fn move_camera(ctx: &mut Context) {
+    let dt = ctx.time.delta_secs();
     let speed = 300.0;
 
-    let input = world.resource::<Input<KeyCode>>();
     let mut dx = 0.0f32;
     let mut dy = 0.0f32;
-    if input.pressed(KeyCode::KeyW) { dy += 1.0; }
-    if input.pressed(KeyCode::KeyS) { dy -= 1.0; }
-    if input.pressed(KeyCode::KeyA) { dx -= 1.0; }
-    if input.pressed(KeyCode::KeyD) { dx += 1.0; }
+    if ctx.input.pressed(KeyCode::KeyW) { dy += 1.0; }
+    if ctx.input.pressed(KeyCode::KeyS) { dy -= 1.0; }
+    if ctx.input.pressed(KeyCode::KeyA) { dx -= 1.0; }
+    if ctx.input.pressed(KeyCode::KeyD) { dx += 1.0; }
 
     if dx != 0.0 || dy != 0.0 {
-        world.query_single::<(&mut Transform,), Camera2d>(|_e, (tf,)| {
-            tf.translation.x += dx * speed * dt;
-            tf.translation.y += dy * speed * dt;
-        });
+        let camera = ctx.world.named("camera");
+        let tf = ctx.world.get_mut::<Transform>(camera).unwrap();
+        tf.translation.x += dx * speed * dt;
+        tf.translation.y += dy * speed * dt;
     }
 }

@@ -293,18 +293,6 @@ impl fmt::Debug for AudioSource {
     }
 }
 
-// ── Plugin ──────────────────────────────────────────────────────────────
-
-/// Plugin: inserts an [`AudioEngine`] resource and registers [`audio_system`].
-pub struct AudioPlugin;
-
-impl crate::app::Plugin for AudioPlugin {
-    fn build(&self, app: &mut crate::app::App) {
-        app.world.insert_resource(AudioEngine::new());
-        app.systems.add_system(audio_system);
-    }
-}
-
 // ── System ──────────────────────────────────────────────────────────────
 
 /// Audio system — auto-plays `AudioSource` components and cleans up finished sounds.

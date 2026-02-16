@@ -123,6 +123,31 @@ pub struct Sprite {
     pub texture_rect: Rect,
 }
 
+impl Sprite {
+    /// Create a new sprite with default values (white, zero-sized).
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set the tint color.
+    pub fn color(mut self, color: Color) -> Self {
+        self.color = color;
+        self
+    }
+
+    /// Set the size in world units.
+    pub fn size(mut self, width: f32, height: f32) -> Self {
+        self.size = Vec2::new(width, height);
+        self
+    }
+
+    /// Set the texture.
+    pub fn texture(mut self, texture: TextureHandle) -> Self {
+        self.texture = Some(texture);
+        self
+    }
+}
+
 impl Default for Sprite {
     fn default() -> Self {
         Self {

@@ -24,6 +24,5 @@ pub mod system;
 pub mod world;
 
 pub use entity::Entity;
-pub use hierarchy::{Children, GlobalTransform, HierarchyPlugin, Parent};
-pub use system::{Schedule, System};
+pub use hierarchy::{Children, GlobalTransform, Parent};
 pub use world::World;

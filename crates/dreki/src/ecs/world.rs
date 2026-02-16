@@ -39,7 +39,7 @@
 //! keep everything else minimal.
 
 use std::any::{Any, TypeId};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use super::archetype::{Archetype, ArchetypeKey, archetype_key};
 use super::component::{ComponentColumn, component_type_id};
@@ -67,6 +67,14 @@ pub struct World {
     entity_locations: HashMap<u32, EntityLocation>,
     /// Global resources (singletons), keyed by TypeId.
     resources: HashMap<TypeId, Box<dyn Any>>,
+    /// Named entity lookup: name → entity.
+    names: HashMap<String, Entity>,
+    /// Reverse lookup: entity index → name.
+    names_reverse: HashMap<u32, String>,
+    /// Tag → set of entities with that tag.
+    tags: HashMap<String, HashSet<Entity>>,
+    /// Entity index → tags on that entity.
+    entity_tags: HashMap<u32, Vec<String>>,
     /// Number of entities spawned this frame (diagnostics only).
     #[cfg(feature = "diagnostics")]
     spawned_this_frame: u32,
@@ -82,6 +90,10 @@ impl World {
             archetypes: HashMap::new(),
             entity_locations: HashMap::new(),
             resources: HashMap::new(),
+            names: HashMap::new(),
+            names_reverse: HashMap::new(),
+            tags: HashMap::new(),
+            entity_tags: HashMap::new(),
             #[cfg(feature = "diagnostics")]
             spawned_this_frame: 0,
             #[cfg(feature = "diagnostics")]
@@ -169,6 +181,75 @@ impl World {
         self.archetypes
             .values()
             .any(|a| a.has_component(&type_id) && !a.entities.is_empty())
+    }
+
+    // ── Named Entities ─────────────────────────────────────────────
+
+    /// Get the entity with the given name.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no entity has that name.
+    pub fn named(&self, name: &str) -> Entity {
+        *self.names.get(name).unwrap_or_else(|| {
+            panic!("No entity named \"{}\"", name)
+        })
+    }
+
+    /// Try to get the entity with the given name. Returns `None` if not found.
+    pub fn try_named(&self, name: &str) -> Option<Entity> {
+        self.names.get(name).copied()
+    }
+
+    /// Assign a name to an entity. Used internally by Context::spawn().
+    ///
+    /// # Panics
+    ///
+    /// Panics if the name is already in use.
+    pub(crate) fn name_entity(&mut self, entity: Entity, name: &str) {
+        if let Some(&existing) = self.names.get(name) {
+            panic!(
+                "Name \"{}\" is already used by entity {:?} (tried to assign to {:?})",
+                name, existing, entity
+            );
+        }
+        self.names.insert(name.to_string(), entity);
+        self.names_reverse.insert(entity.index(), name.to_string());
+    }
+
+    // ── Tags ──────────────────────────────────────────────────────────
+
+    /// Add a tag to an entity. An entity can have multiple tags,
+    /// and many entities can share the same tag.
+    pub fn tag(&mut self, entity: Entity, tag: &str) {
+        self.tags
+            .entry(tag.to_string())
+            .or_insert_with(HashSet::new)
+            .insert(entity);
+        self.entity_tags
+            .entry(entity.index())
+            .or_insert_with(Vec::new)
+            .push(tag.to_string());
+    }
+
+    /// Get all entities with a given tag.
+    pub fn tagged(&self, tag: &str) -> Vec<Entity> {
+        self.tags
+            .get(tag)
+            .map(|set| set.iter().copied().collect())
+            .unwrap_or_default()
+    }
+
+    /// Collect all entities that have a component of type `T`.
+    pub fn entities_with<T: 'static + Send + Sync>(&self) -> Vec<Entity> {
+        let type_id = TypeId::of::<T>();
+        let mut result = Vec::new();
+        for arch in self.archetypes.values() {
+            if arch.has_component(&type_id) {
+                result.extend_from_slice(&arch.entities);
+            }
+        }
+        result
     }
 
     // ── Entity Management ────────────────────────────────────────────
@@ -407,6 +488,12 @@ impl World {
         for entity in all_entities {
             self.despawn(entity);
         }
+        // Clear name/tag maps (despawn already removes per-entity, but this
+        // ensures a clean slate even if something was missed).
+        self.names.clear();
+        self.names_reverse.clear();
+        self.tags.clear();
+        self.entity_tags.clear();
     }
 
     /// Despawn an entity, removing it from its archetype and freeing its ID
@@ -416,6 +503,23 @@ impl World {
     pub fn despawn(&mut self, entity: Entity) -> bool {
         if !self.allocator.is_alive(entity) {
             return false;
+        }
+
+        // Clean up name.
+        if let Some(name) = self.names_reverse.remove(&entity.index()) {
+            self.names.remove(&name);
+        }
+
+        // Clean up tags.
+        if let Some(tags) = self.entity_tags.remove(&entity.index()) {
+            for tag in tags {
+                if let Some(set) = self.tags.get_mut(&tag) {
+                    set.remove(&entity);
+                    if set.is_empty() {
+                        self.tags.remove(&tag);
+                    }
+                }
+            }
         }
 
         if let Some(loc) = self.entity_locations.remove(&entity.index) {
@@ -1271,5 +1375,112 @@ mod tests {
         world.spawn((Position { x: 1.0, y: 1.0 }, Marker));
 
         world.query_single::<(&Position,), Marker>(|_, _| {});
+    }
+
+    // ── Named entity tests ───────────────────────────────────────────
+
+    #[test]
+    fn named_entity_lookup() {
+        let mut world = World::new();
+        let e = world.spawn((Position { x: 1.0, y: 2.0 },));
+        world.name_entity(e, "player");
+
+        assert_eq!(world.named("player"), e);
+        assert_eq!(world.try_named("player"), Some(e));
+        assert_eq!(world.try_named("nonexistent"), None);
+    }
+
+    #[test]
+    #[should_panic(expected = "No entity named")]
+    fn named_panics_on_missing() {
+        let world = World::new();
+        world.named("ghost");
+    }
+
+    #[test]
+    #[should_panic(expected = "already used")]
+    fn duplicate_name_panics() {
+        let mut world = World::new();
+        let e1 = world.spawn((Position { x: 0.0, y: 0.0 },));
+        let e2 = world.spawn((Position { x: 1.0, y: 1.0 },));
+        world.name_entity(e1, "hero");
+        world.name_entity(e2, "hero");
+    }
+
+    #[test]
+    fn despawn_cleans_up_name() {
+        let mut world = World::new();
+        let e = world.spawn((Marker,));
+        world.name_entity(e, "temp");
+        assert!(world.try_named("temp").is_some());
+
+        world.despawn(e);
+        assert!(world.try_named("temp").is_none());
+    }
+
+    // ── Tag tests ────────────────────────────────────────────────────
+
+    #[test]
+    fn tag_and_query() {
+        let mut world = World::new();
+        let e1 = world.spawn((Position { x: 0.0, y: 0.0 },));
+        let e2 = world.spawn((Position { x: 1.0, y: 1.0 },));
+        let _e3 = world.spawn((Position { x: 2.0, y: 2.0 },));
+
+        world.tag(e1, "enemy");
+        world.tag(e2, "enemy");
+
+        let enemies = world.tagged("enemy");
+        assert_eq!(enemies.len(), 2);
+        assert!(enemies.contains(&e1));
+        assert!(enemies.contains(&e2));
+    }
+
+    #[test]
+    fn tagged_returns_empty_for_unknown() {
+        let world = World::new();
+        assert!(world.tagged("nothing").is_empty());
+    }
+
+    #[test]
+    fn despawn_cleans_up_tags() {
+        let mut world = World::new();
+        let e = world.spawn((Marker,));
+        world.tag(e, "temporary");
+        assert_eq!(world.tagged("temporary").len(), 1);
+
+        world.despawn(e);
+        assert!(world.tagged("temporary").is_empty());
+    }
+
+    #[test]
+    fn despawn_all_cleans_names_and_tags() {
+        let mut world = World::new();
+        let e1 = world.spawn((Marker,));
+        let e2 = world.spawn((Marker,));
+        world.name_entity(e1, "a");
+        world.name_entity(e2, "b");
+        world.tag(e1, "group");
+        world.tag(e2, "group");
+
+        world.despawn_all();
+        assert!(world.try_named("a").is_none());
+        assert!(world.try_named("b").is_none());
+        assert!(world.tagged("group").is_empty());
+    }
+
+    // ── entities_with tests ──────────────────────────────────────────
+
+    #[test]
+    fn entities_with_component() {
+        let mut world = World::new();
+        let e1 = world.spawn((Position { x: 0.0, y: 0.0 }, Marker));
+        let _e2 = world.spawn((Position { x: 1.0, y: 1.0 },));
+        let e3 = world.spawn((Marker,));
+
+        let with_marker = world.entities_with::<Marker>();
+        assert_eq!(with_marker.len(), 2);
+        assert!(with_marker.contains(&e1));
+        assert!(with_marker.contains(&e3));
     }
 }

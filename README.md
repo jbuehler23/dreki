@@ -1,6 +1,6 @@
-# Dreki
+# NECS
 
-A lightweight game framework for rapid prototyping, built with a custom ECS, wgpu rendering, and hot-reloadable assets.
+**N**ot-another **ECS** — a lightweight game framework for rapid prototyping, built with a custom ECS, wgpu rendering, and hot-reloadable assets.
 
 ## Features
 
@@ -9,12 +9,12 @@ A lightweight game framework for rapid prototyping, built with a custom ECS, wgp
 - **3D rendering** — PBR (Cook-Torrance), glTF loading, built-in shapes, point/directional lights
 - **Physics** — Rapier 2D/3D integration (opt-in)
 - **Hot reload** — live texture and shader reloading via filesystem watcher
-- **Diagnostics TUI** — real-time metrics dashboard (`dreki-telemetry`)
+- **Diagnostics TUI** — real-time metrics dashboard (`necs-telemetry`)
 
 ## Quick Start
 
 ```rust
-use dreki::prelude::*;
+use necs::prelude::*;
 
 fn main() {
     Game::new("My Game")

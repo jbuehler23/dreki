@@ -738,41 +738,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8b14ccef22fc6f5a8f4d7d768562a182c04ce9a3b3157b91390b52ddfdf1a76"
 
 [[package]]
-name = "dreki"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "egui",
- "egui-wgpu",
- "egui-winit",
- "env_logger",
- "fontdue",
- "glam 0.30.10",
- "gltf",
- "image",
- "kira",
- "log",
- "notify",
- "pollster",
- "rapier2d",
- "rapier3d",
- "serde",
- "serde_json",
- "wgpu",
- "winit",
-]
-
-[[package]]
-name = "dreki-telemetry"
-version = "0.1.0"
-dependencies = [
- "crossterm",
- "ratatui",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "ecolor"
 version = "0.33.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2015,6 +1980,41 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee6cda3051665f1fb8d9e08fc35c96d5a244fb1be711a03b71118828afc9a873"
 dependencies = [
  "jni-sys",
+]
+
+[[package]]
+name = "necs"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "egui",
+ "egui-wgpu",
+ "egui-winit",
+ "env_logger",
+ "fontdue",
+ "glam 0.30.10",
+ "gltf",
+ "image",
+ "kira",
+ "log",
+ "notify",
+ "pollster",
+ "rapier2d",
+ "rapier3d",
+ "serde",
+ "serde_json",
+ "wgpu",
+ "winit",
+]
+
+[[package]]
+name = "necs-telemetry"
+version = "0.1.0"
+dependencies = [
+ "crossterm",
+ "ratatui",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
